@@ -57,8 +57,6 @@
 #define CLK_GPIO_Port GPIOA
 #define CW_CCW_Pin GPIO_PIN_4
 #define CW_CCW_GPIO_Port GPIOA
-#define H_F_Step_Pin GPIO_PIN_5
-#define H_F_Step_GPIO_Port GPIOA
 #define LED_RFID_Pin GPIO_PIN_6
 #define LED_RFID_GPIO_Port GPIOA
 #define LED_FLASH_Pin GPIO_PIN_7

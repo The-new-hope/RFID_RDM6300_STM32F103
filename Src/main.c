@@ -57,17 +57,21 @@ uint8_t counter = 0;
 uint8_t Flag_Rx_Full = 0;
 uint8_t Flag_Start_Collect = 0;
 uint8_t Tcounter1 = 0;
-uint8_t Tcounter2 = 0;
+//uint8_t Tcounter2 = 0;
 uint16_t size_UART;
 uint8_t Data_Rx[32];
 uint8_t Data_Tx[32];
 uint8_t keys[][10]={
-	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x36,0x35},//0
-	{0x36,0x42,0x30,0x30,0x38,0x30,0x46,0x32,0x36,0x37} //1
+	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x38,0x35},//0
+	{0x36,0x42,0x30,0x30,0x38,0x30,0x46,0x32,0x36,0x37},//1 true
+	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x36,0x36},//2	
+	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x37,0x35},//3	
+	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x48,0x36,0x35},//4	
+	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x36,0x35} //5	true
 };
-//	uint8_t i=0;
-//	uint8_t a=0;	
-	uint8_t str=0;;
+	uint8_t access=0;
+	uint8_t a = 0;	
+	uint8_t str=0;
 	
 	
 uint8_t transmitBuffer[32];
@@ -98,7 +102,7 @@ void TIM3_IRQHandler(void)
 void TIM2_IRQHandler(void)
 {
   HAL_TIM_IRQHandler(&htim2);
-  Tcounter2 ++;
+	CLK_GPIO_Port->ODR^=(CLK_Pin);
 }
 /* USER CODE END 0 */
 
@@ -111,7 +115,6 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
-//	a= 0x56^0x5A^0xE8^0x0C^0x65;
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -157,64 +160,80 @@ int main(void)
 	HAL_UART_Receive_IT(&huart1,&str, 1);
   while (1)
   {
-		if (Tcounter2 >= 100) {
-			GPIOA->ODR^=(GPIO_PIN_7);
-			Tcounter2 = 0;	
-		}
+
 		if (Tcounter1 >= 10) {
 			GPIOC->ODR^=(GPIO_PIN_13);
 			Tcounter1 = 0;	
 		}		
 		
-		
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+																																					//***********************
+		if(huart1.RxXferCount==0){																										//
+			if (str == 0x02){								// If I found start symbol 0x02							//
+				Flag_Start_Collect = 1;				// I set flag start collect									//
+			}																																						//
+			if (Flag_Start_Collect == 1){																								//
+				if (str != 0x02){							// Ignore start symbol 0x02									//
+					Data_Rx[counter] = str;																									//
+					counter++;																															//
+				}																																					// Recive byte and feeling buffer Data_Rx
+				if (counter == 13){						// Collect buffer 													// 
+					counter = 0;																														//
+					Flag_Rx_Full = 1;						// If buffer is full - set flag buffer full	//
+					Flag_Start_Collect = 0;																									//
+				}																																					//
+			}																																						//
+			HAL_UART_Receive_IT(&huart1,&str, 1);	// Start UART Recive again						//
+		}																																							//
+																																					//***********************
+		if (Flag_Rx_Full == 1){																												//
+			HAL_UART_MspDeInit(&huart1);					// Switch off UART1										//
+			Flag_Rx_Full = 0;																														//
+			HAL_UART_Transmit(&huart2, Data_Rx, 13, 0xFFFF);														//
+			uint8_t a=sizeof(keys)/10;																									//
+			for (uint8_t i = 0; i<=a-1; i++){																						//
+				for (uint8_t q = 0; q<=9; q++){																						//
+					if (keys[i][q]==Data_Rx[q]){																						// Compare keys and set flag access
+						counter ++;																														//
+						if (counter == 10){access=1;a=i;}																			//		
+					}																																				//
+				}																																					//
+					counter = 0;																														//
+			}																																						//
+																																					//***********************
+			if (access==1){
+				size_UART = sprintf((char *)Data_Tx," Access granted %d \n\r", a);
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);				
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7,	GPIO_PIN_SET);
+				HAL_GPIO_WritePin(LED_RFID_GPIO_Port, LED_RFID_Pin,	GPIO_PIN_SET); 	// Set LED_RFID
+				HAL_GPIO_WritePin(ENABLE_GPIO_Port, ENABLE_Pin,	GPIO_PIN_SET);			// Set ENABLE_Pin for motor
+				HAL_GPIO_WritePin(CW_CCW_GPIO_Port, CW_CCW_Pin,	GPIO_PIN_SET);			// Set CW_CCW_Pin for motor
+				
+				size_UART = sprintf((char *)Data_Tx,"Door opened\n\r");
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
 
-		if(huart1.RxXferCount==0){
-			if (str == 0x02){							// Ignore start symbol 0x02
-				Flag_Start_Collect = 1;
-			}
-			if (Flag_Start_Collect == 1){			
-				if (str != 0x02){							// Ignore start symbol 0x02
-					Data_Rx[counter] = str;
-					counter++;
-				}			
-			if (counter == 13){						// Collect buffer 
-				counter = 0;
-				Flag_Rx_Full = 1;						// If buffer is full - set flag
-				Flag_Start_Collect = 0;
-			}
-		}
+				HAL_Delay(6000);
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7,	GPIO_PIN_RESET);
+				size_UART = sprintf((char *)Data_Tx,"Door close\n\r");
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);					
+			}	else {			
+				size_UART = sprintf((char *)Data_Tx," Access denided\n\r");
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);			
+			}				
+			access=0;																															//
+			counter = 0;																													//
+			for (uint8_t w = 0; w<=13; w++){																			// Clear all flag and buffer
+				Data_Rx[w]=0;																												//
+			}																																			//
 			
-			
-			
-			HAL_UART_Receive_IT(&huart1,&str, 1);	// Start UART Recive again		
-		}
-		
-		
-		
-		
-		
-		if (Flag_Rx_Full == 1){
-			HAL_UART_MspDeInit(&huart1);					// Switch off UART1
-			Flag_Rx_Full = 0;
-			HAL_UART_Transmit(&huart2, Data_Rx, 13, 0xFFFF);
-//				size_UART = sprintf((char *)Data_Rx,"\n\r");
-//				HAL_UART_Transmit(&huart2, Data_Rx, size_UART, 0xFFFF);			
-			for (uint8_t i = 0; i<=13; i++){
-				Data_Rx[i]=0;				
-			}
+
 			HAL_Delay(1000);
 			HAL_UART_MspInit(&huart1);					// Switch on UART1
 		}
-
-
-
-
   }
   /* USER CODE END 3 */
-
 }
 
 /**
@@ -392,8 +411,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_on_board_GPIO_Port, LED_on_board_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, ENABLE_Pin|CLK_Pin|CW_CCW_Pin|H_F_Step_Pin 
-                          |LED_RFID_Pin|LED_FLASH_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, ENABLE_Pin|CLK_Pin|CW_CCW_Pin|LED_RFID_Pin|LED_FLASH_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_on_board_Pin */
   GPIO_InitStruct.Pin = LED_on_board_Pin;
@@ -402,10 +420,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_on_board_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ENABLE_Pin CLK_Pin CW_CCW_Pin H_F_Step_Pin 
-                           LED_RFID_Pin LED_FLASH_Pin */
-  GPIO_InitStruct.Pin = ENABLE_Pin|CLK_Pin|CW_CCW_Pin|H_F_Step_Pin 
-                          |LED_RFID_Pin|LED_FLASH_Pin;
+  /*Configure GPIO pins : ENABLE_Pin CLK_Pin CW_CCW_Pin LED_RFID_Pin LED_FLASH_Pin */
+  GPIO_InitStruct.Pin = ENABLE_Pin|CLK_Pin|CW_CCW_Pin|LED_RFID_Pin|LED_FLASH_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

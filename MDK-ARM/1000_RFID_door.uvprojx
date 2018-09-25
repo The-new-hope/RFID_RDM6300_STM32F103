@@ -404,6 +404,11 @@
               <FileType>1</FileType>
               <FilePath>../Src/stm32f1xx_hal_msp.c</FilePath>
             </File>
+            <File>
+              <FileName>flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\flash.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
