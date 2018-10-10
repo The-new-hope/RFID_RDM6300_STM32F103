@@ -53,6 +53,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+uint8_t Status_Door_Lock = 0;
 uint8_t counter = 0;
 uint8_t Flag_Rx_Full = 0;
 uint8_t Flag_Start_Collect = 0;
@@ -91,6 +92,8 @@ static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 static void MX_NVIC_Init(void);
+void Door_Lock_OPEN(void);
+void Door_Lock_CLOSE(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -151,9 +154,14 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	
-//	
-		size_UART = sprintf((char *)Data_Tx,"I'm alive! Hello world!\n\r");
-		HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
+	if (Door_Lock_Close == 0 && Door_Lock_Open == 0){
+		Status_Door_Lock = 0; // Door lock is CLOSE
+	}
+	if (Door_Lock_Close == 1 && Door_Lock_Open == 1){
+		Status_Door_Lock = 1; // Door lock is OPEN
+	}	
+	size_UART = sprintf((char *)Data_Tx,"I'm alive! Hello world!\n\r");
+	HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
 //		HAL_Delay(500);	
 //		
 		
@@ -204,18 +212,14 @@ int main(void)
 			}																																						//
 																																					//***********************
 			if (access==1){
-				size_UART = sprintf((char *)Data_Tx," Access granted %d \n\r", a);
+				size_UART = sprintf((char *)Data_Tx,"\n\rAccess granted %d \n\r", a);
 				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);				
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7,	GPIO_PIN_SET);
+				Door_Lock_OPEN();
+								
 				HAL_GPIO_WritePin(LED_RFID_GPIO_Port, LED_RFID_Pin,	GPIO_PIN_SET); 	// Set LED_RFID
-				HAL_GPIO_WritePin(ENABLE_GPIO_Port, ENABLE_Pin,	GPIO_PIN_SET);			// Set ENABLE_Pin for motor
-				HAL_GPIO_WritePin(CW_CCW_GPIO_Port, CW_CCW_Pin,	GPIO_PIN_SET);			// Set CW_CCW_Pin for motor
-				
-				size_UART = sprintf((char *)Data_Tx,"Door opened\n\r");
-				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
 
-				HAL_Delay(6000);
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7,	GPIO_PIN_RESET);
+				
+	
 				size_UART = sprintf((char *)Data_Tx,"Door close\n\r");
 				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);					
 			}	else {			
@@ -372,8 +376,7 @@ static void MX_USART1_UART_Init(void)
 }
 
 /* USART2 init function */
-static void MX_USART2_UART_Init(void)
-{
+static void MX_USART2_UART_Init(void){
 
   huart2.Instance = USART2;
   huart2.Init.BaudRate = 9600;
@@ -397,8 +400,7 @@ static void MX_USART2_UART_Init(void)
         * EVENT_OUT
         * EXTI
 */
-static void MX_GPIO_Init(void)
-{
+static void MX_GPIO_Init(void){
 
   GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -411,7 +413,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_on_board_GPIO_Port, LED_on_board_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, ENABLE_Pin|CLK_Pin|CW_CCW_Pin|LED_RFID_Pin|LED_FLASH_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, ENABLE_Pin|CLK_Pin|CW_CCW_Pin|LED_RFID_Pin|BUZZER_FLASH_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_on_board_Pin */
   GPIO_InitStruct.Pin = LED_on_board_Pin;
@@ -421,23 +423,22 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(LED_on_board_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ENABLE_Pin CLK_Pin CW_CCW_Pin LED_RFID_Pin LED_FLASH_Pin */
-  GPIO_InitStruct.Pin = ENABLE_Pin|CLK_Pin|CW_CCW_Pin|LED_RFID_Pin|LED_FLASH_Pin;
+  GPIO_InitStruct.Pin = ENABLE_Pin|CLK_Pin|CW_CCW_Pin|LED_RFID_Pin|BUZZER_FLASH_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  /*Configure GPIO pin : PA8 | PA11*/
+  GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_11;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
-void MX_NVIC_Init(void)
-{
+void MX_NVIC_Init(void){
   /* TIM2_IRQn interrupt configuration */
 		HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
 		HAL_NVIC_EnableIRQ(TIM2_IRQn);
@@ -450,6 +451,38 @@ void MX_NVIC_Init(void)
 		HAL_NVIC_EnableIRQ(USART2_IRQn);	
 	
 }
+
+void Door_Lock_OPEN(void){
+	if (Status_Door_Lock == 0){
+		while (Door_Lock_Open == 0){
+			BUZZER_FLASH_ON; // PinA 7
+			ENABLE_ON;
+			CW_CCW_UP;
+		}
+		if (Door_Lock_Close == 1 && Door_Lock_Open == 1){
+			Status_Door_Lock = 1;
+			ENABLE_OFF;
+		}
+	}
+	size_UART = sprintf((char *)Data_Tx,"Door opened\n\r");
+	HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
+	HAL_Delay (1000);
+	BUZZER_FLASH_OFF;
+}
+
+void Door_Lock_CLOSE(void){
+	if (Status_Door_Lock == 1){
+		while (Door_Lock_Close == 1){
+			ENABLE_ON;
+			CW_CCW_DOWN;
+		}
+		if (Door_Lock_Close == 0 && Door_Lock_Open == 0){
+			Status_Door_Lock = 0;
+			ENABLE_OFF;
+		}
+	}
+}
+
 /* USER CODE END 4 */
 
 /**

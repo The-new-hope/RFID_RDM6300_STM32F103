@@ -59,8 +59,12 @@
 #define CW_CCW_GPIO_Port GPIOA
 #define LED_RFID_Pin GPIO_PIN_6
 #define LED_RFID_GPIO_Port GPIOA
-#define LED_FLASH_Pin GPIO_PIN_7
-#define LED_FLASH_GPIO_Port GPIOA
+#define BUZZER_FLASH_Pin GPIO_PIN_7
+#define BUZZER_FLASH_GPIO_Port GPIOA
+#define Door_Lock_Open_Pin GPIO_PIN_11
+#define Door_Lock_Open_Port GPIOA
+#define Door_Lock_Close_Pin GPIO_PIN_8
+#define Door_Lock_Close_Port GPIOA
 
 /* ########################## Assert Selection ############################## */
 /**
