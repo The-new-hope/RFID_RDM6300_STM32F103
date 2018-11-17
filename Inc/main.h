@@ -49,22 +49,24 @@
 
 /* Private define ------------------------------------------------------------*/
 
-#define LED_on_board_Pin GPIO_PIN_13
-#define LED_on_board_GPIO_Port GPIOC
-#define ENABLE_Pin GPIO_PIN_0
-#define ENABLE_GPIO_Port GPIOA
-#define CLK_Pin GPIO_PIN_1
-#define CLK_GPIO_Port GPIOA
-#define CW_CCW_Pin GPIO_PIN_4
-#define CW_CCW_GPIO_Port GPIOA
-#define LED_RFID_Pin GPIO_PIN_6
-#define LED_RFID_GPIO_Port GPIOA
-#define BUZZER_FLASH_Pin GPIO_PIN_7
-#define BUZZER_FLASH_GPIO_Port GPIOA
-#define Door_Lock_Open_Pin GPIO_PIN_11
-#define Door_Lock_Open_Port GPIOA
-#define Door_Lock_Close_Pin GPIO_PIN_8
-#define Door_Lock_Close_Port GPIOA
+#define LED_on_board_Pin 							GPIO_PIN_13
+#define LED_on_board_GPIO_Port 				GPIOC
+#define ENABLE_Pin 										GPIO_PIN_0
+#define ENABLE_GPIO_Port 							GPIOA
+#define CLK_Pin 											GPIO_PIN_1
+#define CLK_GPIO_Port 								GPIOA
+#define CW_CCW_Pin 										GPIO_PIN_4
+#define CW_CCW_GPIO_Port 							GPIOA
+#define LED_RFID_Pin 									GPIO_PIN_6
+#define LED_RFID_GPIO_Port 						GPIOA
+#define BUZZER_FLASH_Pin 							GPIO_PIN_7
+#define BUZZER_FLASH_GPIO_Port 				GPIOA
+#define Door_Lock_Open_Pin 						GPIO_PIN_11
+#define Door_Lock_Open_Port 					GPIOA
+#define Door_Lock_Close_Pin 					GPIO_PIN_8
+#define Door_Lock_Close_Port 					GPIOA
+#define Door_Lock_Close_Button_Pin 		GPIO_PIN_12
+#define Door_Lock_Close_Button_Port 	GPIOA
 
 /* ########################## Assert Selection ############################## */
 /**

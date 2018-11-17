@@ -3,7 +3,6 @@
 "1000_rfid_door\main.o"
 "1000_rfid_door\stm32f1xx_it.o"
 "1000_rfid_door\stm32f1xx_hal_msp.o"
-"1000_rfid_door\flash.o"
 "1000_rfid_door\stm32f1xx_hal_gpio_ex.o"
 "1000_rfid_door\stm32f1xx_hal_tim.o"
 "1000_rfid_door\stm32f1xx_hal_tim_ex.o"

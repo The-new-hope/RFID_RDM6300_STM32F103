@@ -1,38 +1,5 @@
 
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  ** This notice applies to any and all portions of this file
-  * that are not between comment pairs USER CODE BEGIN and
-  * USER CODE END. Other portions of this file, whether 
-  * inserted by the user or by software development tools
-  * are owned by their respective copyright owners.
-  *
-  * COPYRIGHT(c) 2018 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/********************************************************************************
   *
   ******************************************************************************
   */
@@ -53,7 +20,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-uint8_t Status_Door_Lock = 0;
+uint8_t Status_Door_Lock = 0; // 0 - Door lock is CLOSE; 1 - Door lock is open
 uint8_t counter = 0;
 uint8_t Flag_Rx_Full = 0;
 uint8_t Flag_Start_Collect = 0;
@@ -92,18 +59,16 @@ static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 static void MX_NVIC_Init(void);
-void Door_Lock_OPEN(void);
-void Door_Lock_CLOSE(void);
+void Door_Lock_OPENING(void);
+void Door_Lock_CLOSING(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-void TIM3_IRQHandler(void)
-{
+void TIM3_IRQHandler(void){
   HAL_TIM_IRQHandler(&htim3);
 	Tcounter1 ++;
 }
-void TIM2_IRQHandler(void)
-{
+void TIM2_IRQHandler(void){
   HAL_TIM_IRQHandler(&htim2);
 	CLK_GPIO_Port->ODR^=(CLK_Pin);
 }
@@ -138,12 +103,12 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+	MX_NVIC_Init();	
   MX_USART1_UART_Init();
+  MX_USART2_UART_Init();	
   MX_TIM2_Init();
-  MX_USART2_UART_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-	MX_NVIC_Init();
 	HAL_TIM_Base_Start(&htim2);
   HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_Base_Start(&htim3);
@@ -160,17 +125,24 @@ int main(void)
 	if (Door_Lock_Close == 1 && Door_Lock_Open == 1){
 		Status_Door_Lock = 1; // Door lock is OPEN
 	}	
-	size_UART = sprintf((char *)Data_Tx,"I'm alive! Hello world!\n\r");
-	HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
-//		HAL_Delay(500);	
-//		
+	if (Door_Lock_Close == 1 && Door_Lock_Open == 0){
+		Status_Door_Lock = 0; // Door lock is CLOSE
+		Door_Lock_OPENING();
+	}
+	if (Status_Door_Lock == 1){
+		size_UART = sprintf((char *)Data_Tx,"Door lock is OPEN\n\r");
+		HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
+	}else{
+		size_UART = sprintf((char *)Data_Tx,"Door lock is CLOSE\n\r");
+		HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);		
+	}	
 		
 	HAL_UART_Receive_IT(&huart1,&str, 1);
   while (1)
   {
-
 		if (Tcounter1 >= 10) {
 			GPIOC->ODR^=(GPIO_PIN_13);
+			LED_RFID_GPIO_Port->ODR^=(LED_RFID_Pin);
 			Tcounter1 = 0;	
 		}		
 		
@@ -193,49 +165,51 @@ int main(void)
 					Flag_Start_Collect = 0;																									//
 				}																																					//
 			}																																						//
+//			HAL_UART_Transmit(&huart2,&str, 1, 0xFFFF);
 			HAL_UART_Receive_IT(&huart1,&str, 1);	// Start UART Recive again						//
 		}																																							//
 																																					//***********************
 		if (Flag_Rx_Full == 1){																												//
 			HAL_UART_MspDeInit(&huart1);					// Switch off UART1										//
 			Flag_Rx_Full = 0;																														//
+			access = 1;																																	//
 			HAL_UART_Transmit(&huart2, Data_Rx, 13, 0xFFFF);														//
-			uint8_t a=sizeof(keys)/10;																									//
+			a = sizeof(keys)/10;																									//
 			for (uint8_t i = 0; i<=a-1; i++){																						//
 				for (uint8_t q = 0; q<=9; q++){																						//
 					if (keys[i][q]==Data_Rx[q]){																						// Compare keys and set flag access
 						counter ++;																														//
-						if (counter == 10){access=1;a=i;}																			//		
+						if (counter == 10){access=2;a=i;}																			//		
 					}																																				//
 				}																																					//
-					counter = 0;																														//
+				counter = 0;																														//
 			}																																						//
-																																					//***********************
-			if (access==1){
-				size_UART = sprintf((char *)Data_Tx,"\n\rAccess granted %d \n\r", a);
-				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);				
-				Door_Lock_OPEN();
-								
-				HAL_GPIO_WritePin(LED_RFID_GPIO_Port, LED_RFID_Pin,	GPIO_PIN_SET); 	// Set LED_RFID
-
-				
-	
-				size_UART = sprintf((char *)Data_Tx,"Door close\n\r");
-				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);					
-			}	else {			
-				size_UART = sprintf((char *)Data_Tx," Access denided\n\r");
-				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);			
-			}				
-			access=0;																															//
-			counter = 0;																													//
 			for (uint8_t w = 0; w<=13; w++){																			// Clear all flag and buffer
 				Data_Rx[w]=0;																												//
-			}																																			//
-			
+			}
+			HAL_Delay(200);
+			HAL_UART_MspInit(&huart1);					// Switch on UART1			
+		}	
+																																						//***********************		
+		if (access == 2){				
+			size_UART = sprintf((char *)Data_Tx,"\n\rAccess granted %d \n\r", a);
+			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
+			access = 0;
+			a = 0;
+			Door_Lock_OPENING();																															//								
+		}	else if (access == 1){
+			access=0;
+			a = 0;
+			size_UART = sprintf((char *)Data_Tx," Access denided\n\r");
+			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);			
+		}	
 
-			HAL_Delay(1000);
-			HAL_UART_MspInit(&huart1);					// Switch on UART1
-		}
+//				size_UART = sprintf((char *)Data_Tx,"Door close\n\r");
+//				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
+
+//			HAL_Delay(1000);
+
+
   }
   /* USER CODE END 3 */
 }
@@ -244,8 +218,7 @@ int main(void)
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void)
-{
+void SystemClock_Config(void){
 
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -291,8 +264,7 @@ void SystemClock_Config(void)
 }
 
 /* TIM2 init function */
-static void MX_TIM2_Init(void)
-{
+static void MX_TIM2_Init(void){
 
   TIM_ClockConfigTypeDef sClockSourceConfig;
   TIM_MasterConfigTypeDef sMasterConfig;
@@ -300,7 +272,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 16000;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 10;
+  htim2.Init.Period = 1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -324,8 +296,7 @@ static void MX_TIM2_Init(void)
 }
 
 /* TIM3 init function */
-static void MX_TIM3_Init(void)
-{
+static void MX_TIM3_Init(void){
 
   TIM_ClockConfigTypeDef sClockSourceConfig;
   TIM_MasterConfigTypeDef sMasterConfig;
@@ -357,8 +328,7 @@ static void MX_TIM3_Init(void)
 }
 
 /* USART1 init function */
-static void MX_USART1_UART_Init(void)
-{
+static void MX_USART1_UART_Init(void){
 
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 9600;
@@ -429,8 +399,8 @@ static void MX_GPIO_Init(void){
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA8 | PA11*/
-  GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_11;
+  /*Configure GPIO pin : PA8 | PA11 | PA12*/
+  GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_11 | GPIO_PIN_12;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -452,12 +422,15 @@ void MX_NVIC_Init(void){
 	
 }
 
-void Door_Lock_OPEN(void){
-	if (Status_Door_Lock == 0){
+void Door_Lock_OPENING(void){
+	if (Status_Door_Lock == 0){//Status 0 - Door lock is CLOSE; 1 - Door lock is open
+		Tcounter1 = 0;
 		while (Door_Lock_Open == 0){
 			BUZZER_FLASH_ON; // PinA 7
+			LED_RFID_ON; 	// Set LED_RFID			
 			ENABLE_ON;
 			CW_CCW_UP;
+			if (Tcounter1 == 9){break;}
 		}
 		if (Door_Lock_Close == 1 && Door_Lock_Open == 1){
 			Status_Door_Lock = 1;
@@ -468,13 +441,16 @@ void Door_Lock_OPEN(void){
 	HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
 	HAL_Delay (1000);
 	BUZZER_FLASH_OFF;
+	LED_RFID_OFF;	// Reset LED_RFID
 }
 
-void Door_Lock_CLOSE(void){
+void Door_Lock_CLOSING(void){
 	if (Status_Door_Lock == 1){
+		Tcounter1 = 0;
 		while (Door_Lock_Close == 1){
 			ENABLE_ON;
 			CW_CCW_DOWN;
+			if (Tcounter1 == 9){break;}
 		}
 		if (Door_Lock_Close == 0 && Door_Lock_Open == 0){
 			Status_Door_Lock = 0;
