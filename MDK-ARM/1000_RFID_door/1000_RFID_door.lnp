@@ -16,6 +16,7 @@
 "1000_rfid_door\stm32f1xx_hal_pwr.o"
 "1000_rfid_door\stm32f1xx_hal_flash.o"
 "1000_rfid_door\stm32f1xx_hal_flash_ex.o"
+"1000_rfid_door\stm32f1xx_hal_iwdg.o"
 "1000_rfid_door\system_stm32f1xx.o"
 --library_type=microlib --strict --scatter "1000_RFID_door\1000_RFID_door.sct"
 --summary_stderr --info summarysizes --map --xref --callgraph --symbols

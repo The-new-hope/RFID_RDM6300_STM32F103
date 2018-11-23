@@ -23,8 +23,8 @@
 																																															 // 01 - невозможное состояние, концевик замока сломан
 
 #define BUZZER_FLASH_ON		HAL_GPIO_WritePin(BUZZER_FLASH_GPIO_Port, BUZZER_FLASH_Pin,	GPIO_PIN_SET)    //PIN_7
-#define BUZZER_FLASH_OFF		HAL_GPIO_WritePin(BUZZER_FLASH_GPIO_Port, BUZZER_FLASH_Pin,	GPIO_PIN_RESET)
+#define BUZZER_FLASH_OFF	HAL_GPIO_WritePin(BUZZER_FLASH_GPIO_Port, BUZZER_FLASH_Pin,	GPIO_PIN_RESET)
 
-#define LED_RFID_ON		HAL_GPIO_WritePin(LED_RFID_GPIO_Port, LED_RFID_Pin,	GPIO_PIN_SET)			//PIN_6
-#define LED_RFID_OFF		HAL_GPIO_WritePin(LED_RFID_GPIO_Port, LED_RFID_Pin,	GPIO_PIN_RESET)
+#define LED_RFID_OFF	HAL_GPIO_WritePin(LED_RFID_GPIO_Port, LED_RFID_Pin,	GPIO_PIN_SET)			//PIN_6
+#define LED_RFID_ON		HAL_GPIO_WritePin(LED_RFID_GPIO_Port, LED_RFID_Pin,	GPIO_PIN_RESET)
 

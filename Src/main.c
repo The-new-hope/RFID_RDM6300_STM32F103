@@ -17,13 +17,14 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
-
+IWDG_HandleTypeDef hiwdg;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 uint8_t Status_Door_Lock = 0; // 0 - Door lock is CLOSE; 1 - Door lock is open
 uint8_t counter = 0;
 uint8_t Flag_Rx_Full = 0;
 uint8_t Flag_Start_Collect = 0;
+uint8_t Tcounter = 0;
 uint8_t Tcounter1 = 0;
 //uint8_t Tcounter2 = 0;
 uint16_t size_UART;
@@ -55,7 +56,8 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM3_Init(void);
-
+static void MX_IWDG_Init(void);
+static void Short_Buzzer_Beep(uint8_t x);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 static void MX_NVIC_Init(void);
@@ -66,7 +68,13 @@ void Door_Lock_CLOSING(void);
 /* USER CODE BEGIN 0 */
 void TIM3_IRQHandler(void){
   HAL_TIM_IRQHandler(&htim3);
+	Tcounter ++;	
 	Tcounter1 ++;
+		if (Tcounter1 >= 10) {
+			HAL_IWDG_Refresh(&hiwdg);
+			GPIOC->ODR^=(GPIO_PIN_13);
+			Tcounter1 = 0;	
+		}		
 }
 void TIM2_IRQHandler(void){
   HAL_TIM_IRQHandler(&htim2);
@@ -113,12 +121,14 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_Base_Start(&htim3);
   HAL_TIM_Base_Start_IT(&htim3);
-
+	MX_IWDG_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	
+	LED_RFID_OFF;	
+	BUZZER_FLASH_OFF;
+
 	if (Door_Lock_Close == 0 && Door_Lock_Open == 0){
 		Status_Door_Lock = 0; // Door lock is CLOSE
 	}
@@ -136,15 +146,10 @@ int main(void)
 		size_UART = sprintf((char *)Data_Tx,"Door lock is CLOSE\n\r");
 		HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);		
 	}	
-		
 	HAL_UART_Receive_IT(&huart1,&str, 1);
-  while (1)
-  {
-		if (Tcounter1 >= 10) {
-			GPIOC->ODR^=(GPIO_PIN_13);
-			LED_RFID_GPIO_Port->ODR^=(LED_RFID_Pin);
-			Tcounter1 = 0;	
-		}		
+////////////////////////////////////////////////////////////////////////////////////////////////////////	
+  while (1){
+		
 		
   /* USER CODE END WHILE */
 
@@ -168,7 +173,7 @@ int main(void)
 //			HAL_UART_Transmit(&huart2,&str, 1, 0xFFFF);
 			HAL_UART_Receive_IT(&huart1,&str, 1);	// Start UART Recive again						//
 		}																																							//
-																																					//***********************
+//***********************//***********************//***********************//***********************
 		if (Flag_Rx_Full == 1){																												//
 			HAL_UART_MspDeInit(&huart1);					// Switch off UART1										//
 			Flag_Rx_Full = 0;																														//
@@ -182,38 +187,47 @@ int main(void)
 						if (counter == 10){access=2;a=i;}																			//		
 					}																																				//
 				}																																					//
-				counter = 0;																														//
+				counter = 0;																															//
 			}																																						//
-			for (uint8_t w = 0; w<=13; w++){																			// Clear all flag and buffer
-				Data_Rx[w]=0;																												//
-			}
-			HAL_Delay(200);
-			HAL_UART_MspInit(&huart1);					// Switch on UART1			
+			for (uint8_t w = 0; w<=13; w++){																						// Clear all flag and buffer
+				Data_Rx[w]=0;																															//
+			}																																						//
+			HAL_Delay(200);																															//
+			HAL_UART_MspInit(&huart1);					// Switch on UART1											//
 		}	
-																																						//***********************		
-		if (access == 2){				
-			size_UART = sprintf((char *)Data_Tx,"\n\rAccess granted %d \n\r", a);
-			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
-			access = 0;
-			a = 0;
-			Door_Lock_OPENING();																															//								
-		}	else if (access == 1){
-			access=0;
+//***********************//***********************//***********************//***********************		
+		if (access == 2){																															//
+			size_UART = sprintf((char *)Data_Tx,"\n\rAccess granted %d \n\r", a);				//
+			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);											//
+			access = 0;																																	//
+			a = 0;																																			//
+			Door_Lock_OPENING();																												//
+		}	else if (access == 1){																											//
+			access=0;																																		//
 			a = 0;
 			size_UART = sprintf((char *)Data_Tx," Access denided\n\r");
-			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);			
+			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
+			HAL_Delay(200);			
 		}	
+//***********************//***********************//***********************//***********************			
+		if (Door_Lock_Close_Button ==1){
 
-//				size_UART = sprintf((char *)Data_Tx,"Door close\n\r");
-//				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
-
-//			HAL_Delay(1000);
-
-
+			Short_Buzzer_Beep(2);
+			
+				size_UART = sprintf((char *)Data_Tx,"Door closing\n\r");
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
+			Tcounter = 0;			
+			while (Tcounter <= 100){
+//				__NOP;	
+				HAL_Delay(1);			
+			}
+			Door_Lock_CLOSING();
+			Short_Buzzer_Beep(3);
+		}	
   }
   /* USER CODE END 3 */
 }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -225,7 +239,7 @@ void SystemClock_Config(void){
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;//|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
@@ -379,11 +393,12 @@ static void MX_GPIO_Init(void){
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
+  /*Configure GPIOC pin Output Level */
   HAL_GPIO_WritePin(LED_on_board_GPIO_Port, LED_on_board_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, ENABLE_Pin|CLK_Pin|CW_CCW_Pin|LED_RFID_Pin|BUZZER_FLASH_Pin, GPIO_PIN_RESET);
+  /*Configure GPIOA pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, LED_RFID_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, ENABLE_Pin | CLK_Pin | CW_CCW_Pin | LED_RFID_Pin | BUZZER_FLASH_Pin | Door_Lock_Close_Button_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_on_board_Pin */
   GPIO_InitStruct.Pin = LED_on_board_Pin;
@@ -400,7 +415,7 @@ static void MX_GPIO_Init(void){
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA8 | PA11 | PA12*/
-  GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_11 | GPIO_PIN_12;
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_11|Door_Lock_Close_Button_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -424,40 +439,78 @@ void MX_NVIC_Init(void){
 
 void Door_Lock_OPENING(void){
 	if (Status_Door_Lock == 0){//Status 0 - Door lock is CLOSE; 1 - Door lock is open
-		Tcounter1 = 0;
+		Tcounter = 0;
 		while (Door_Lock_Open == 0){
 			BUZZER_FLASH_ON; // PinA 7
 			LED_RFID_ON; 	// Set LED_RFID			
 			ENABLE_ON;
 			CW_CCW_UP;
-			if (Tcounter1 == 9){break;}
+			if (Tcounter == 100){
+				ENABLE_OFF;
+				size_UART = sprintf((char *)Data_Tx,"Door lock is broken, not respone\n\r");
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
+				break;
+			}
 		}
 		if (Door_Lock_Close == 1 && Door_Lock_Open == 1){
 			Status_Door_Lock = 1;
 			ENABLE_OFF;
+			size_UART = sprintf((char *)Data_Tx,"Door opened\n\r");
+			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
+			HAL_Delay (1000);
+			BUZZER_FLASH_OFF;
+			LED_RFID_OFF;	// Reset LED_RFID						
 		}
 	}
-	size_UART = sprintf((char *)Data_Tx,"Door opened\n\r");
-	HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
-	HAL_Delay (1000);
-	BUZZER_FLASH_OFF;
-	LED_RFID_OFF;	// Reset LED_RFID
 }
 
 void Door_Lock_CLOSING(void){
 	if (Status_Door_Lock == 1){
-		Tcounter1 = 0;
+		Tcounter = 0;
 		while (Door_Lock_Close == 1){
+			BUZZER_FLASH_ON; // PinA 7
+			LED_RFID_ON; 	// Set LED_RFID				
 			ENABLE_ON;
 			CW_CCW_DOWN;
-			if (Tcounter1 == 9){break;}
+			if (Tcounter == 100){
+				ENABLE_OFF;
+				size_UART = sprintf((char *)Data_Tx,"Door lock is broken, not respone\n\r");
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);				
+				break;
+			}
 		}
 		if (Door_Lock_Close == 0 && Door_Lock_Open == 0){
 			Status_Door_Lock = 0;
 			ENABLE_OFF;
+			size_UART = sprintf((char *)Data_Tx,"Door closed\n\r");
+			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
+			HAL_Delay (1000);
+			BUZZER_FLASH_OFF;
+			LED_RFID_OFF;	// Reset LED_RFID					
 		}
+	}	
+}
+
+void Short_Buzzer_Beep(uint8_t x){
+ for (uint8_t q = 1; q <= x; q++){
+		BUZZER_FLASH_ON;
+		HAL_Delay(300);
+		BUZZER_FLASH_OFF;	
+		HAL_Delay(300);		
 	}
 }
+
+/* IWDG init function */
+static void MX_IWDG_Init(void){
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+  hiwdg.Init.Reload = 4095;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+}
+
 
 /* USER CODE END 4 */
 
