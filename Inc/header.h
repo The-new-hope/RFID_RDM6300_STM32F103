@@ -20,7 +20,7 @@
 																																															 // 00 - замок полностью закрыт
 																																															 // 11 - замок полностью открыт
 																																															 // 10 - в переходном состоянии, замок не полностью открыт или закрыт
-																																															 // 01 - невозможное состояние, концевик замока сломан
+																																															 // 01 - невозможное состояние, концевик замка сломан
 
 #define BUZZER_FLASH_ON		HAL_GPIO_WritePin(BUZZER_FLASH_GPIO_Port, BUZZER_FLASH_Pin,	GPIO_PIN_SET)    //PIN_7
 #define BUZZER_FLASH_OFF	HAL_GPIO_WritePin(BUZZER_FLASH_GPIO_Port, BUZZER_FLASH_Pin,	GPIO_PIN_RESET)
