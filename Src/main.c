@@ -22,16 +22,17 @@ IWDG_HandleTypeDef hiwdg;
 /* Private variables ---------------------------------------------------------*/
 uint8_t Status_Door_Lock = 0; // 0 - Door lock is CLOSE; 1 - Door lock is open
 uint8_t counter = 0;
+uint8_t ErrorCounter = 0;
 uint8_t Flag_Rx_Full = 0;
 uint8_t Flag_Start_Collect = 0;
 uint8_t Tcounter = 0;
-uint8_t Tcounter1 = 0;
+uint8_t Tcounter1 = 0; // For clear WatchDog and flashing Led one time per second
 //uint8_t Tcounter2 = 0;
 uint16_t size_UART;
 uint8_t Data_Rx[32];
 uint8_t Data_Tx[32];
 uint8_t keys[][10]={
-	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x38,0x35},//0
+	{0x30,0x42,0x30,0x30,0x33,0x45,0x44,0x35,0x44,0x32},//0 true
 	{0x36,0x42,0x30,0x30,0x38,0x30,0x46,0x32,0x36,0x37},//1 true
 	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x36,0x36},//2	
 	{0x35,0x36,0x35,0x41,0x45,0x38,0x30,0x43,0x37,0x35},//3	
@@ -40,7 +41,7 @@ uint8_t keys[][10]={
 };
 	uint8_t access=0;
 	uint8_t a = 0;	
-	uint8_t str=0;
+	uint8_t str[14];//=0;
 	
 	
 uint8_t transmitBuffer[32];
@@ -73,9 +74,7 @@ void TIM3_IRQHandler(void){
 	Tcounter1 ++;
 		if (Tcounter1 >= 10) {
 			HAL_IWDG_Refresh(&hiwdg);
-			GPIOC->ODR^=(GPIO_PIN_13);
-//		size_UART = sprintf((char *)Data_Tx,"all ok\n\r");
-//		HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);			
+			GPIOC->ODR^=(LED_on_board_Pin);			
 			Tcounter1 = 0;	
 		}		
 }
@@ -146,7 +145,7 @@ int main(void)
 
 	Get_Status_Door_Lock();	
 	
-	HAL_UART_Receive_IT(&huart1,&str, 1);
+	HAL_UART_Receive_IT(&huart1,(uint8_t*)str, 14);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////	
   while (1){
 		
@@ -156,29 +155,45 @@ int main(void)
   /* USER CODE BEGIN 3 */
 																																					//***********************
 		if(huart1.RxXferCount==0){																										//
-			if (str == 0x02){								// If I found start symbol 0x02							//
+			if (str[0] == 0x02){								// If I found start symbol 0x02							//
 				Flag_Start_Collect = 1;				// I set flag start collect									//
-			}																																						//
-			if (Flag_Start_Collect == 1){																								//
-				if (str != 0x02){							// Ignore start symbol 0x02									//
-					Data_Rx[counter] = str;																									//
-					counter++;																															//
+			}	else {																																		//			
+				huart1.RxXferCount = 13;
+				for (uint8_t w = 0; w <=13; w++){
+					str[w] = 0;
+				}			
+			}	
+				if (Flag_Start_Collect == 1){																								//
+				for (uint8_t w = 1; w <=12; w++){																					// Ignore start symbol 0x02	
+					Data_Rx[w-1] = str[w];																									//
+					if (w == 12){
+						Flag_Rx_Full = 1;						// If buffer is full - set flag buffer full	//
+						__HAL_UART_DISABLE(&huart1);
+						Flag_Start_Collect = 0;																									//											
+					}
 				}																																					// Recive byte and feeling buffer Data_Rx
-				if (counter == 13){						// Collect buffer 													// 
-					counter = 0;																														//
-					Flag_Rx_Full = 1;						// If buffer is full - set flag buffer full	//
-					Flag_Start_Collect = 0;																									//
-				}																																					//
 			}																																						//
-//			HAL_UART_Transmit(&huart2,&str, 1, 0xFFFF);
-			HAL_UART_Receive_IT(&huart1,&str, 1);	// Start UART Recive again						//
+			for (uint8_t w = 0; w <=13; w++){
+				str[w] = 0;
+			}
+			
+			
+			__HAL_UART_CLEAR_OREFLAG(&huart1);
+			
+//			HAL_UART_Transmit(&huart2,str, 14, 0xFFFF);	
+//			size_UART = sprintf((char *)Data_Tx,"\n\r");
+//			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
+		
+			HAL_UART_Receive_IT(&huart1,(uint8_t*)str, 14);// Start UART Recive again						//HAL_NVIC_SystemReset();	
 		}																																							//
 //***********************//***********************//***********************//***********************
 		if (Flag_Rx_Full == 1){																												//
-			HAL_UART_MspDeInit(&huart1);					// Switch off UART1										//
+			Short_Buzzer_Beep(1);
+			__HAL_UART_DISABLE(&huart1);
+//			HAL_UART_MspDeInit(&huart1);					// Switch off UART1										//
 			Flag_Rx_Full = 0;																														//
 			access = 1;														//	Access denided										//
-			HAL_UART_Transmit(&huart2, Data_Rx, 13, 0xFFFF);														//
+//			HAL_UART_Transmit(&huart2, Data_Rx, 11, 0xFFFF);														//
 			a = sizeof(keys)/10;																												//
 			for (uint8_t i = 0; i<=a-1; i++){																						//
 				for (uint8_t q = 0; q<=9; q++){																						//
@@ -192,8 +207,9 @@ int main(void)
 			for (uint8_t w = 0; w<=13; w++){																						// Clear all flag and buffer
 				Data_Rx[w]=0;																															//
 			}																																						//
-			HAL_Delay(200);																															//
-			HAL_UART_MspInit(&huart1);					// Switch on UART1											//
+			HAL_Delay(1000);																															//
+			__HAL_UART_ENABLE(&huart1);
+//			HAL_UART_MspInit(&huart1);					// Switch on UART1											//
 		}																																							//
 //***********************//***********************//***********************//***********************		
 		if (access == 2){																															//
@@ -204,10 +220,18 @@ int main(void)
 			Door_Lock_OPENING();																												//
 		}	else if (access == 1){																											//
 			access=0;			//	Clear Access flag																					//
-			a = 0;
-			size_UART = sprintf((char *)Data_Tx," Access denided\n\r");
-			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
-			HAL_Delay(200);			
+			a = 0;																																			//
+			Short_Buzzer_Beep(2);
+			ErrorCounter ++;
+			if (ErrorCounter >= 5){
+				ErrorCounter = 0;
+				size_UART = sprintf((char *)Data_Tx,"\n\rToo mamy time.. Pause 10 sek\n\r");									//
+				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
+				HAL_Delay(10000);
+			}
+			size_UART = sprintf((char *)Data_Tx," Access denided\n\r");									//
+			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);											//
+			HAL_Delay(200);																															//
 		}																																							//
 //***********************//***********************//***********************//***********************			
 		if (Door_Lock_Close_Button ==1){
@@ -220,14 +244,11 @@ int main(void)
 			size_UART = sprintf((char *)Data_Tx,"Door will be closing...\n\r");
 			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
 			Short_Buzzer_Beep(10);						
-//			Tcounter = 0;			
-//			while (Tcounter <= 100){
-////				__NOP;	
-//				HAL_Delay(1);			
-//			}
+
 			Door_Lock_CLOSING();
 			Short_Buzzer_Beep(3);
 		}	
+//***********************//***********************//***********************//***********************		
   }
   /* USER CODE END 3 */
 }
@@ -346,7 +367,7 @@ static void MX_TIM3_Init(void){
 }
 
 /* USART1 init function */
-static void MX_USART1_UART_Init(void){
+static void MX_USART1_UART_Init(void){							// for RFID
 
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 9600;
@@ -364,7 +385,7 @@ static void MX_USART1_UART_Init(void){
 }
 
 /* USART2 init function */
-static void MX_USART2_UART_Init(void){
+static void MX_USART2_UART_Init(void){							// for PC
 
   huart2.Instance = USART2;
   huart2.Init.BaudRate = 9600;
@@ -429,14 +450,14 @@ static void MX_GPIO_Init(void){
 /* USER CODE BEGIN 4 */
 void MX_NVIC_Init(void){
   /* TIM2_IRQn interrupt configuration */
-		HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+		HAL_NVIC_SetPriority(TIM2_IRQn, 3, 3);
 		HAL_NVIC_EnableIRQ(TIM2_IRQn);
-		HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+		HAL_NVIC_SetPriority(TIM3_IRQn, 3, 3);
 		HAL_NVIC_EnableIRQ(TIM3_IRQn);
   /* USART interrupt configuration */	
 		HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
 		HAL_NVIC_EnableIRQ(USART1_IRQn);	
-		HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+		HAL_NVIC_SetPriority(USART2_IRQn, 1, 1);
 		HAL_NVIC_EnableIRQ(USART2_IRQn);	
 	
 }

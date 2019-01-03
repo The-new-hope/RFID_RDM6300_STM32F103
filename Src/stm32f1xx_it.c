@@ -40,6 +40,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern uint8_t str[14];
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 
@@ -203,7 +204,7 @@ void USART1_IRQHandler(void)
   /* USER CODE END USART1_IRQn 0 */
   HAL_UART_IRQHandler(&huart1);
   /* USER CODE BEGIN USART1_IRQn 1 */
-
+	
   /* USER CODE END USART1_IRQn 1 */
 }
 
