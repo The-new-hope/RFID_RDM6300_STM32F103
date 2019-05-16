@@ -188,9 +188,8 @@ int main(void)
 		}																																							//
 //***********************//***********************//***********************//***********************
 		if (Flag_Rx_Full == 1){																												//
-			Short_Buzzer_Beep(1);
-			__HAL_UART_DISABLE(&huart1);
-//			HAL_UART_MspDeInit(&huart1);					// Switch off UART1										//
+			Short_Buzzer_Beep(1);																												//
+			__HAL_UART_DISABLE(&huart1);																								//
 			Flag_Rx_Full = 0;																														//
 			access = 1;														//	Access denided										//
 //			HAL_UART_Transmit(&huart2, Data_Rx, 11, 0xFFFF);														//
@@ -207,9 +206,8 @@ int main(void)
 			for (uint8_t w = 0; w<=13; w++){																						// Clear all flag and buffer
 				Data_Rx[w]=0;																															//
 			}																																						//
-			HAL_Delay(1000);																															//
-			__HAL_UART_ENABLE(&huart1);
-//			HAL_UART_MspInit(&huart1);					// Switch on UART1											//
+			HAL_Delay(200);																														//
+			__HAL_UART_ENABLE(&huart1);																									//
 		}																																							//
 //***********************//***********************//***********************//***********************		
 		if (access == 2){																															//
@@ -225,7 +223,7 @@ int main(void)
 			ErrorCounter ++;
 			if (ErrorCounter >= 5){
 				ErrorCounter = 0;
-				size_UART = sprintf((char *)Data_Tx,"\n\rToo mamy time.. Pause 10 sek\n\r");									//
+				size_UART = sprintf((char *)Data_Tx,"\n\rToo mamy time.. Pause 10 sek\n\r");//
 				HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);
 				HAL_Delay(10000);
 			}
@@ -233,7 +231,7 @@ int main(void)
 			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);											//
 			HAL_Delay(200);																															//
 		}																																							//
-//***********************//***********************//***********************//***********************			
+//***********************Door_Lock_Close_Button****************************************************			
 		if (Door_Lock_Close_Button ==1){
 			if(Status_Door_Lock == 0){
 				size_UART = sprintf((char *)Data_Tx,"Bad command. Doorlock have been closed\n\r");
@@ -243,12 +241,12 @@ int main(void)
 
 			size_UART = sprintf((char *)Data_Tx,"Door will be closing...\n\r");
 			HAL_UART_Transmit(&huart2, Data_Tx, size_UART, 0xFFFF);	
-			Short_Buzzer_Beep(10);						
+			Short_Buzzer_Beep(15);						
 
 			Door_Lock_CLOSING();
 			Short_Buzzer_Beep(3);
 		}	
-//***********************//***********************//***********************//***********************		
+//********************************************************************************************		
   }
   /* USER CODE END 3 */
 }
